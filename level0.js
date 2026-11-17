@@ -11,78 +11,133 @@ window.Level0 = (function () {
     let doorMesh = null;
     let doorCollider = null;
 
+    // Отдельный красивый ракурс в глубине лабиринта специально для Главного меню
+    const MENU_CAM_POS = new THREE.Vector3(-18, 1.68, -22);
+
+    function addCeilingLamp(x, z) {
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 0.08, 0.75),
+            new THREE.MeshBasicMaterial({ color: 0xffffea })
+        );
+        frame.position.set(x, 3.26, z);
+        scene.add(frame);
+
+        if (Math.abs(x) % 24 === 8 || Math.abs(z) % 24 === 8) {
+            const light = new THREE.PointLight(0xfff1b8, 0.85, 24);
+            light.position.set(x, 2.8, z);
+            scene.add(light);
+        }
+    }
+
     function buildLevel() {
         engine = window.BackroomsEngine;
         scene = engine.getScene();
 
-        const carpetTex = engine.loadTexture('./carpet_0.png', 24, 24);
+        const carpetTex = engine.loadTexture('./carpet_0.png', 45, 45);
         const wallTex = engine.loadTexture('./wall_0.png', 4, 1);
+        const ceilTex = engine.createCeilingTileTexture(45, 45);
 
-        carpetMat = new THREE.MeshStandardMaterial({ map: carpetTex, color: 0xd9cf8f, roughness: 0.95 });
-        wallMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0xe8de9a, roughness: 0.85 });
-        ceilingMat = new THREE.MeshStandardMaterial({ color: 0x9c9466, roughness: 0.9 });
-
-        // Пол и потолок Уровня 0
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), carpetMat);
-        floor.rotation.x = -Math.PI / 2;
-        scene.add(floor);
-
-        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), ceilingMat);
-        ceiling.rotation.x = Math.PI / 2;
-        ceiling.position.y = 3.2;
-        scene.add(ceiling);
-
-        // Лампы на потолке
-        const lampCoords = [[0, 1], [0, -5], [-8, -10], [8, -10], [0, -18], [0, -26], [-10, -22]];
-        lampCoords.forEach(([lx, lz]) => {
-            const panel = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.08, 0.7), new THREE.MeshBasicMaterial({ color: 0xffffe2 }));
-            panel.position.set(lx, 3.16, lz);
-            scene.add(panel);
-
-            const light = new THREE.PointLight(0xfff0aa, 1.0, 14);
-            light.position.set(lx, 2.7, lz);
-            scene.add(light);
+        carpetMat = new THREE.MeshStandardMaterial({
+            map: carpetTex,
+            color: 0xe3d896,
+            roughness: 0.75,
+            metalness: 0.08
+        });
+        wallMat = new THREE.MeshStandardMaterial({
+            map: wallTex,
+            color: 0xede3a1,
+            roughness: 0.7,
+            metalness: 0.05
+        });
+        ceilingMat = new THREE.MeshStandardMaterial({
+            map: ceilTex,
+            color: 0xd4cc9a,
+            roughness: 0.85
         });
 
-        // Внешние стены и стартовый коридор (фон главного меню)
-        engine.addBox(0, 1.6, 8, 28, 3.2, 0.5, wallMat);
-        engine.addBox(-14, 1.6, -12, 0.5, 3.2, 40, wallMat);
-        engine.addBox(14, 1.6, -12, 0.5, 3.2, 40, wallMat);
+        // Общий пол и клетчатый потолок основного уровня
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(130, 130), carpetMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(0, 0, -25);
+        floor.receiveShadow = true;
+        scene.add(floor);
 
-        // Колонны в кадре меню и стартовой зоне
-        engine.addBox(-3.5, 1.6, 0, 1.2, 3.2, 1.2, wallMat);
-        engine.addBox(3.5, 1.6, 0, 1.2, 3.2, 1.2, wallMat);
-        engine.addBox(-3.5, 1.6, -6, 1.2, 3.2, 1.2, wallMat);
-        engine.addBox(3.5, 1.6, -6, 1.2, 3.2, 1.2, wallMat);
+        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(130, 130), ceilingMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.set(0, 3.3, -25);
+        scene.add(ceiling);
 
-        // Перегородки лабиринта
-        engine.addBox(-8, 1.6, -4, 5, 3.2, 0.4, wallMat);
-        engine.addBox(8, 1.6, -4, 5, 3.2, 0.4, wallMat);
-        engine.addBox(-7, 1.6, -12, 0.4, 3.2, 8, wallMat);
-        engine.addBox(7, 1.6, -12, 0.4, 3.2, 8, wallMat);
+        // Сетка потолочных люминесцентных ламп
+        for (let lx = -32; lx <= 32; lx += 12) {
+            for (let lz = 16; lz >= -68; lz -= 12) {
+                addCeilingLamp(lx, lz);
+            }
+        }
 
-        // Сбор лестницы (3 части по лабиринту)
-        const partPositions = [
-            new THREE.Vector3(-10, 0.3, 2),
-            new THREE.Vector3(10, 0.3, -1),
-            new THREE.Vector3(-10, 0.3, -14)
+        // Внешний периметр карты по схеме
+        engine.addBox(0, 1.65, 22, 72, 3.3, 0.6, wallMat);     // Южная граница
+        engine.addBox(36, 1.65, -14, 0.6, 3.3, 72, wallMat);   // Восточная граница
+        engine.addBox(-36, 1.65, -14, 0.6, 3.3, 72, wallMat);  // Западная граница
+
+        // 1. НИЖНЯЯ ПРАВАЯ СЕКЦИЯ: СПАВН С СЕТКОЙ КОЛОНН
+        engine.addBox(-2, 1.65, 14, 0.5, 3.3, 14, wallMat);
+        engine.addBox(-2, 1.65, -2, 0.5, 3.3, 10, wallMat);
+
+        for (let cx = 4; cx <= 30; cx += 6.5) {
+            for (let cz = 16; cz >= -4; cz -= 6.5) {
+                engine.addBox(cx, 1.65, cz, 1.5, 3.3, 1.5, wallMat);
+            }
+        }
+
+        // 2. НИЖНЯЯ ЛЕВАЯ СЕКЦИЯ: ПЛОТНЫЙ ЗАПУТАННЫЙ ЛАБИРИНТ
+        engine.addBox(-18, 1.65, 16, 24, 3.3, 0.5, wallMat);
+        engine.addBox(-28, 1.65, 10, 0.5, 3.3, 12, wallMat);
+        engine.addBox(-12, 1.65, 10, 14, 3.3, 0.5, wallMat);
+        engine.addBox(-20, 1.65, 4, 0.5, 3.3, 12, wallMat);
+        engine.addBox(-10, 1.65, 2, 12, 3.3, 0.5, wallMat);
+        engine.addBox(-28, 1.65, -3, 12, 3.3, 0.5, wallMat);
+
+        // Горизонтальная перегородка между нижней и центральной секциями
+        engine.addBox(-26, 1.65, -8, 18, 3.3, 0.5, wallMat);
+        engine.addBox(-6, 1.65, -8, 12, 3.3, 0.5, wallMat);
+        engine.addBox(12, 1.65, -8, 14, 3.3, 0.5, wallMat);
+        engine.addBox(30, 1.65, -8, 10, 3.3, 0.5, wallMat);
+        // 3. ЦЕНТРАЛЬНЫЙ БОЛЬШОЙ ЛАБИРИНТ И ГАЛЕРЕЯ ДЛЯ МЕНЮ
+        engine.addBox(-22, 1.65, -24, 1.4, 3.3, 1.4, wallMat);
+        engine.addBox(-14, 1.65, -24, 1.4, 3.3, 1.4, wallMat);
+        engine.addBox(-22, 1.65, -31, 1.4, 3.3, 1.4, wallMat);
+        engine.addBox(-14, 1.65, -31, 1.4, 3.3, 1.4, wallMat);
+        engine.addBox(-26, 1.65, -28, 0.5, 3.3, 16, wallMat);
+
+        engine.addBox(-8, 1.65, -18, 0.5, 3.3, 14, wallMat);
+        engine.addBox(6, 1.65, -16, 18, 3.3, 0.5, wallMat);
+        engine.addBox(16, 1.65, -22, 0.5, 3.3, 12, wallMat);
+        engine.addBox(26, 1.65, -18, 12, 3.3, 0.5, wallMat);
+        engine.addBox(24, 1.65, -28, 0.5, 3.3, 14, wallMat);
+        engine.addBox(10, 1.65, -30, 16, 3.3, 0.5, wallMat);
+
+        // Сбор 3 частей лестницы
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x7c5328, roughness: 0.7 });
+        const partSpots = [
+            new THREE.Vector3(-31, 0.25, 18),
+            new THREE.Vector3(29, 0.25, -23),
+            new THREE.Vector3(-29, 0.25, -33)
         ];
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x7c5328, roughness: 0.8 });
 
-        partPositions.forEach((pos, idx) => {
-            const partMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 1.4), woodMat);
-            partMesh.position.copy(pos);
-            partMesh.rotation.y = 0.5 + idx;
-            scene.add(partMesh);
+        partSpots.forEach((pos, idx) => {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 1.5), woodMat);
+            mesh.position.copy(pos);
+            mesh.rotation.y = 0.6 + idx;
+            scene.add(mesh);
 
             engine.interactables.push({
+                name: 'ЧАСТЬ ЛЕСТНИЦЫ',
                 pos: pos,
-                radius: 2.5,
+                radius: 2.8,
                 active: true,
-                prompt: '[ ВЗЯТЬ ЧАСТЬ ЛЕСТНИЦЫ ]',
                 onInteract: function () {
                     this.active = false;
-                    partMesh.visible = false;
+                    mesh.visible = false;
                     ladderPartsCollected++;
                     engine.addItem({
                         id: 'ladder_part',
@@ -90,52 +145,72 @@ window.Level0 = (function () {
                         icon: '🪜',
                         desc: 'Деревянная секция приставной лестницы.'
                     });
-                    if (ladderPartsCollected < 3) {
-                        engine.setObjective(`Соберите части лестницы (${ladderPartsCollected}/3) и найдите ключ в стене.`);
-                    } else {
-                        engine.setObjective('Все части собраны! Найдите квадратную дыру в стене с ключом.');
-                    }
+                    engine.addChatMessage('Инвентарь', `Подобрана часть лестницы (${ladderPartsCollected}/3).`);
                 }
             });
         });
-        // Стена с квадратной дырой на высоте и ключом
-        engine.addBox(-3, 1.6, -14, 4.8, 3.2, 0.5, wallMat);
-        engine.addBox(3, 1.6, -14, 4.8, 3.2, 0.5, wallMat);
-        engine.addBox(0, 0.9, -14, 1.2, 1.8, 0.5, wallMat);
-        engine.addBox(0, 2.9, -14, 1.2, 0.6, 0.5, wallMat);
 
-        // Ключ внутри квадратной дыры на высоте 2.05м
-        const keyMesh = new THREE.Mesh(
-            new THREE.TorusGeometry(0.14, 0.04, 8, 16),
-            new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+        // Миндальная вода
+        const waterPos = new THREE.Vector3(18, 0.35, 12);
+        const bottleMesh = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.1, 0.36, 10),
+            new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.2, metalness: 0.3 })
         );
-        keyMesh.position.set(0, 2.05, -13.9);
+        bottleMesh.position.copy(waterPos);
+        scene.add(bottleMesh);
+
+        engine.interactables.push({
+            name: 'МИНДАЛЬНАЯ ВОДА',
+            pos: waterPos,
+            radius: 2.6,
+            active: true,
+            onInteract: function () {
+                this.active = false;
+                bottleMesh.visible = false;
+                engine.addItem({
+                    id: 'almond_water',
+                    name: 'МИНДАЛЬНАЯ ВОДА',
+                    icon: '🧴',
+                    desc: 'Восстанавливает выносливость при беге.'
+                });
+                engine.addChatMessage('Инвентарь', 'Подобрана Миндальная вода.');
+            }
+        });
+
+        // Стена с квадратной дырой на высоте и ключом
+        engine.addBox(-1.5, 1.65, -22, 5.5, 3.3, 0.5, wallMat);
+        engine.addBox(5.5, 1.65, -22, 5.5, 3.3, 0.5, wallMat);
+        engine.addBox(2, 0.9, -22, 1.5, 1.8, 0.5, wallMat);
+        engine.addBox(2, 2.95, -22, 1.5, 0.7, 0.5, wallMat);
+
+        const keyMesh = new THREE.Mesh(
+            new THREE.TorusGeometry(0.15, 0.04, 8, 16),
+            new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 })
+        );
+        keyMesh.position.set(2, 2.08, -21.9);
         scene.add(keyMesh);
 
-        // Собранная лестница (изначально скрыта)
-        const woodMatLadder = new THREE.MeshStandardMaterial({ color: 0x7c5328, roughness: 0.8 });
         const fullLadder = new THREE.Group();
-        const railL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.3, 0.08), woodMatLadder);
-        railL.position.set(-0.3, 1.15, 0);
+        const railL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.35, 0.08), woodMat);
+        railL.position.set(-0.32, 1.17, 0);
         const railR = railL.clone();
-        railR.position.x = 0.3;
+        railR.position.x = 0.32;
         fullLadder.add(railL, railR);
-
-        for (let s = 0.3; s <= 2.0; s += 0.35) {
-            const step = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.08), woodMatLadder);
+        for (let s = 0.3; s <= 2.05; s += 0.35) {
+            const step = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.06, 0.08), woodMat);
             step.position.set(0, s, 0);
             fullLadder.add(step);
         }
-        fullLadder.position.set(0, 0, -13.3);
+        fullLadder.position.set(2, 0, -21.2);
         fullLadder.rotation.x = -0.22;
         fullLadder.visible = false;
         scene.add(fullLadder);
 
         engine.interactables.push({
-            pos: new THREE.Vector3(0, 1.5, -13.0),
-            radius: 2.6,
+            name: 'КВАДРАТНАЯ НИША В СТЕНЕ',
+            pos: new THREE.Vector3(2, 1.5, -20.8),
+            radius: 2.8,
             active: true,
-            prompt: '[ ОСМОТРЕТЬ КВАДРАТНУЮ ДЫРУ ]',
             onInteract: function () {
                 if (!ladderPlaced) {
                     if (ladderPartsCollected >= 3) {
@@ -144,10 +219,10 @@ window.Level0 = (function () {
                         engine.removeItem('ladder_part');
                         engine.removeItem('ladder_part');
                         engine.removeItem('ladder_part');
-                        this.prompt = '[ ВЗЯТЬ КЛЮЧ ИЗ НИШИ ]';
-                        engine.setObjective('Лестница установлена! Заберите ключ из квадратной дыры.');
+                        this.name = 'КЛЮЧ В НИШЕ';
+                        engine.addChatMessage('Действие', 'Приставная лестница установлена.');
                     } else {
-                        engine.setObjective(`Слишком высоко! Собрано частей лестницы: ${ladderPartsCollected}/3.`);
+                        engine.addChatMessage('Осмотр', `Слишком высоко. Собрано деталей: ${ladderPartsCollected}/3.`);
                     }
                 } else if (!keyCollected) {
                     keyCollected = true;
@@ -157,26 +232,29 @@ window.Level0 = (function () {
                         id: 'level0_key',
                         name: 'КЛЮЧ СЕКТОРА 0',
                         icon: '🔑',
-                        desc: 'Тяжелый металлический ключ от двери в сектор ям.'
+                        desc: 'Ключ от массивной двери в северном крыле.'
                     });
-                    engine.setObjective('Ключ получен! Найдите запертую дверь в глубине лабиринта.');
+                    engine.addChatMessage('Инвентарь', 'Ключ получен.');
                 }
             }
         });
 
-        // Запертая дверь и комната с квадратными ямами (Pitfalls)
-        engine.addBox(-5, 1.6, -20, 8, 3.2, 0.5, wallMat);
-        engine.addBox(5, 1.6, -20, 8, 3.2, 0.5, wallMat);
+        // 4. ВЕРХНИЙ СЕВЕРНЫЙ СЕКТОР С ДВЕРЬЮ И КВАДРАТНЫМИ ЯМАМИ (z: -38..-68)
+        engine.addBox(-19, 1.65, -38, 34, 3.3, 0.6, wallMat);
+        engine.addBox(19, 1.65, -38, 34, 3.3, 0.6, wallMat);
+        engine.addBox(-18, 1.65, -54, 0.6, 3.3, 32, wallMat);
+        engine.addBox(18, 1.65, -54, 0.6, 3.3, 32, wallMat);
+        engine.addBox(0, 1.65, -70, 36, 3.3, 0.6, wallMat);
 
-        const doorMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.6 });
-        doorMesh = engine.addBox(0, 1.6, -20, 2.0, 3.2, 0.3, doorMat, true);
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.4, metalness: 0.5 });
+        doorMesh = engine.addBox(0, 1.65, -38, 4.0, 3.3, 0.4, doorMat, true);
         doorCollider = engine.colliders[engine.colliders.length - 1];
 
         engine.interactables.push({
-            pos: new THREE.Vector3(0, 1.5, -19.5),
-            radius: 2.6,
+            name: 'МАССИВНАЯ ДВЕРЬ',
+            pos: new THREE.Vector3(0, 1.5, -37.2),
+            radius: 3.0,
             active: true,
-            prompt: '[ ОТКРЫТЬ ДВЕРЬ ]',
             onInteract: function () {
                 if (doorOpened) return;
                 if (engine.hasItem('level0_key')) {
@@ -185,157 +263,190 @@ window.Level0 = (function () {
                     doorMesh.visible = false;
                     const idx = engine.colliders.indexOf(doorCollider);
                     if (idx !== -1) engine.colliders.splice(idx, 1);
-                    engine.setObjective('Дверь открыта. Осторожно: впереди квадратные ямы!');
+                    engine.addChatMessage('Действие', 'Дверь отперта ключом.');
                 } else {
-                    engine.setObjective('Дверь заперта. Нужен ключ из ниши в стене.');
+                    engine.addChatMessage('Осмотр', 'Дверь заперта.');
                 }
             }
         });
 
-        // Черные квадратные ямы за дверью
+        // Сетка квадратных ям за дверью (при наступлении — провал в нижний лабиринт)
         const pitMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-        const pitCoords = [[-2.5, -24], [2.5, -24], [0, -27], [-3, -30], [3, -30]];
-        pitCoords.forEach(([px, pz]) => {
-            const pit = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), pitMat);
-            pit.rotation.x = -Math.PI / 2;
-            pit.position.set(px, 0.02, pz);
-            scene.add(pit);
-        });
+        for (let px = -12; px <= 12; px += 6) {
+            for (let pz = -46; pz >= -64; pz -= 6) {
+                const pit = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), pitMat);
+                pit.rotation.x = -Math.PI / 2;
+                pit.position.set(px, 0.02, pz);
+                scene.add(pit);
+            }
+        }
 
-        buildSubLevelAndHouse();
+        buildSubLevelMazeAndHouse();
     }
-    function buildSubLevelAndHouse() {
-        const subFloor = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), carpetMat);
+    function addWallArrow(x, y, z, rotY) {
+        const arrowGroup = new THREE.Group();
+        const mat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.06), mat);
+        const head1 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.12, 0.06), mat);
+        head1.position.set(0.32, 0.14, 0);
+        head1.rotation.z = -0.65;
+        const head2 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.12, 0.06), mat);
+        head2.position.set(0.32, -0.14, 0);
+        head2.rotation.z = 0.65;
+        arrowGroup.add(shaft, head1, head2);
+        arrowGroup.position.set(x, y, z);
+        arrowGroup.rotation.y = rotY;
+        scene.add(arrowGroup);
+    }
+
+    function buildSubLevelMazeAndHouse() {
+        // Нижний ярус размещен на x = 120 (пол и клетчатый потолок)
+        const subFloor = new THREE.Mesh(new THREE.PlaneGeometry(90, 110), carpetMat);
         subFloor.rotation.x = -Math.PI / 2;
-        subFloor.position.set(100, 0, 0);
+        subFloor.position.set(120, 0, -20);
         scene.add(subFloor);
 
-        const subCeil = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), ceilingMat);
+        const subCeil = new THREE.Mesh(new THREE.PlaneGeometry(90, 110), ceilingMat);
         subCeil.rotation.x = Math.PI / 2;
-        subCeil.position.set(100, 3.4, 0);
+        subCeil.position.set(120, 3.4, -20);
         scene.add(subCeil);
 
-        // Коридоры нижнего яруса (x вокруг 100)
-        engine.addBox(96, 1.7, -15, 0.5, 3.4, 40, wallMat);
-        engine.addBox(104, 1.7, -15, 0.5, 3.4, 40, wallMat);
-        engine.addBox(100, 1.7, 5, 8.5, 3.4, 0.5, wallMat);
+        // Внешние стены нижнего лабиринта (x: 96..144, z: -55..30)
+        engine.addBox(120, 1.7, 30, 48, 3.4, 0.6, wallMat);
+        engine.addBox(96, 1.7, -12, 0.6, 3.4, 84, wallMat);
+        engine.addBox(144, 1.7, -12, 0.6, 3.4, 84, wallMat);
 
-        // Стрелочки на стенах
-        const arrowMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-        [-4, -12, -20, -28].forEach((az) => {
-            const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 1.2), arrowMat);
-            arrow.position.set(96.3, 1.5, az);
-            scene.add(arrow);
+        // Внутренние коридоры и тупики нижнего лабиринта
+        engine.addBox(112, 1.7, 14, 0.5, 3.4, 24, wallMat);
+        engine.addBox(128, 1.7, 10, 0.5, 3.4, 26, wallMat);
+        engine.addBox(104, 1.7, 2, 16, 3.4, 0.5, wallMat);
+        engine.addBox(120, 1.7, -4, 16, 3.4, 0.5, wallMat);
+        engine.addBox(136, 1.7, -12, 16, 3.4, 0.5, wallMat);
+        engine.addBox(110, 1.7, -18, 0.5, 3.4, 20, wallMat);
+        engine.addBox(126, 1.7, -24, 0.5, 3.4, 22, wallMat);
+        engine.addBox(104, 1.7, -34, 16, 3.4, 0.5, wallMat);
+        engine.addBox(134, 1.7, -38, 20, 3.4, 0.5, wallMat);
 
-            const l = new THREE.PointLight(0xffe89e, 0.8, 12);
-            l.position.set(100, 2.9, az);
+        // Мягкое освещение ламп в нижнем лабиринте
+        for (let lz = 22; lz >= -48; lz -= 14) {
+            const l = new THREE.PointLight(0xffe9a6, 0.85, 20);
+            l.position.set(120, 3.0, lz);
             scene.add(l);
-        });
+        }
 
-        // Сущность Бактерия
+        // Направляющие стрелочки на стенах лабиринта (указывают верный маршрут к дому)
+        addWallArrow(112.35, 1.55, 8, Math.PI / 2);     // Вперед по первому коридору
+        addWallArrow(120, 1.55, -3.65, 0);              // Поворот направо к обходу
+        addWallArrow(128.35, 1.55, -10, Math.PI / 2);   // Вперед по восточному коридору
+        addWallArrow(125.65, 1.55, -24, Math.PI / 2);   // Вдоль центральной перегородки
+        addWallArrow(116, 1.55, -34.35, Math.PI / 2);   // Выход к двухэтажному дому
+
+        // Сущность Бактерия (высокая черная фигура из сплетенных кабелей/трубок)
         const bacGroup = new THREE.Group();
-        const bacMat = new THREE.MeshBasicMaterial({ color: 0x080808 });
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 2.6, 6), bacMat);
-        body.position.y = 1.3;
-        const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 5), bacMat);
-        arm1.position.set(-0.4, 1.8, 0);
-        arm1.rotation.z = 0.4;
-        const arm2 = arm1.clone();
-        arm2.position.x = 0.4;
-        arm2.rotation.z = -0.4;
-        bacGroup.add(body, arm1, arm2);
-        bacGroup.position.set(100, 0, 3);
+        const bacMat = new THREE.MeshStandardMaterial({ color: 0x060606, roughness: 0.4, metalness: 0.3 });
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 2.75, 7), bacMat);
+        body.position.y = 1.38;
+        const headLoop = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.05, 6, 12), bacMat);
+        headLoop.position.y = 2.65;
+        const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.9, 6), bacMat);
+        armL.position.set(-0.42, 1.85, 0);
+        armL.rotation.z = 0.38;
+        const armR = armL.clone();
+        armR.position.x = 0.42;
+        armR.rotation.z = -0.38;
+        bacGroup.add(body, headLoop, armL, armR);
+        bacGroup.position.set(120, 0, 27);
         bacGroup.visible = false;
         scene.add(bacGroup);
         bacteriaMesh = bacGroup;
 
-        // Интерьер двухэтажного дома в конце коридора
-        const houseWallMat = new THREE.MeshStandardMaterial({ color: 0xc2b89b, roughness: 0.9 });
-        const woodFloorMat = new THREE.MeshStandardMaterial({ color: 0x5c3d24, roughness: 0.85 });
+        // ИНТЕРЬЕР ДВУХЭТАЖНОГО ДОМА В КОНЦЕ ЛАБИРИНТА (z: -52..-68, x: 110..130)
+        const houseWallMat = new THREE.MeshStandardMaterial({ color: 0xc4ba9d, roughness: 0.85 });
+        const woodFloorMat = new THREE.MeshStandardMaterial({ color: 0x5c3d24, roughness: 0.75 });
 
-        engine.addBox(92, 2.5, -42, 0.5, 5, 14, houseWallMat);
-        engine.addBox(108, 2.5, -42, 0.5, 5, 14, houseWallMat);
-        engine.addBox(100, 2.5, -49, 16, 5, 0.5, houseWallMat);
+        engine.addBox(110, 2.6, -60, 0.6, 5.2, 18, houseWallMat);
+        engine.addBox(130, 2.6, -60, 0.6, 5.2, 18, houseWallMat);
+        engine.addBox(120, 2.6, -69, 20, 5.2, 0.6, houseWallMat);
 
         // Второй этаж дома (перекрытие на высоте 2.4м)
-        engine.addBox(100, 2.4, -44, 15.5, 0.25, 9, woodFloorMat);
+        engine.addBox(120, 2.4, -62, 19.4, 0.25, 11, woodFloorMat);
 
-        // Узкая лестница на второй этаж
+        // Узкая лестница на второй этаж (справа у стены)
         for (let i = 0; i < 8; i++) {
-            const step = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 0.6), woodFloorMat);
-            step.position.set(106, 0.15 + i * 0.3, -36 - i * 0.5);
+            const step = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 0.65), woodFloorMat);
+            step.position.set(128.2, 0.15 + i * 0.3, -52.5 - i * 0.55);
             scene.add(step);
         }
 
-        // Вентиляционный проход на втором этаже (требует приседа)
-        const ventMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.6, roughness: 0.4 });
-        engine.addBox(100, 3.8, -48.5, 2.2, 0.4, 1.2, ventMat);
+        // Вентиляционный проход на втором этаже (нужен присед)
+        const ventMat = new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.7, roughness: 0.3 });
+        engine.addBox(120, 3.85, -68.2, 2.4, 0.4, 1.4, ventMat);
 
         engine.interactables.push({
-            pos: new THREE.Vector3(100, 3.2, -47.5),
-            radius: 2.5,
+            name: 'ВЕНТИЛЯЦИОННЫЙ ПРОХОД',
+            pos: new THREE.Vector3(120, 3.2, -67.2),
+            radius: 2.8,
             active: true,
-            prompt: '[ ЗАПОЛЗТИ В ВЕНТИЛЯЦИЮ (НУЖЕН ПРИСЕД) ]',
             onInteract: function () {
                 if (engine.isCrouching()) {
                     bacteriaActive = false;
-                    alert('ВЫ ПРОШЛИ УРОВЕНЬ 0! Переход на Уровень 1 (Обитаемая зона)...');
+                    alert('СЕКТОР 0 ПРОЙДЕН! Переход на Уровень 1 (Обитаемая зона)...');
                     location.reload();
                 } else {
-                    engine.setObjective('Вентиляция слишком низкая! Нажмите ПРИСЕД, чтобы залезть.');
+                    engine.addChatMessage('Осмотр', 'Слишком низкий проход — нужно присесть.');
                 }
             }
         });
     }
 
     function update(dt, elapsed, playerPos) {
-        // Провал в яму на нижний ярус
-        if (!inSubLevel && doorOpened && playerPos.z < -22.8) {
+        // Провал в ямы северного крыла -> перенос в начало нижнего лабиринта
+        if (!inSubLevel && doorOpened && playerPos.z < -43.5) {
             inSubLevel = true;
             bacteriaActive = true;
             bacteriaMesh.visible = true;
-            engine.setPlayerPos(100, 1.68, 0, 0);
-            bacteriaMesh.position.set(100, 0, 4.2);
-            engine.setObjective('ВЫ УПАЛИ В ЯМУ! Бегите по стрелочкам на стенах — сзади Бактерия!');
+            // Игрок падает на z = 10, а Бактерия стартует далеко позади на z = 27
+            engine.setPlayerPos(120, 1.68, 10, 0);
+            bacteriaMesh.position.set(120, 0, 27);
+            engine.addChatMessage('Система', 'Вы провалились на нижний ярус. Ищите стрелки на стенах!');
         }
 
         // Подъем по узкой лестнице на 2-й этаж дома
-        if (inSubLevel && playerPos.x > 104.5 && playerPos.z < -35 && playerPos.z > -41) {
-            const climbProgress = Math.min(1, Math.max(0, (-35.5 - playerPos.z) / 4.2));
+        if (inSubLevel && playerPos.x > 126.8 && playerPos.z < -51.5 && playerPos.z > -58) {
+            const climbProgress = Math.min(1, Math.max(0, (-52 - playerPos.z) / 4.6));
             const floorOffset = climbProgress * 2.5;
             playerPos.y = (engine.isCrouching() ? 0.85 : 1.68) + floorOffset;
-        } else if (inSubLevel && playerPos.z <= -40 && playerPos.y > 2.6) {
+        } else if (inSubLevel && playerPos.z <= -57 && playerPos.y > 2.6) {
             playerPos.y = (engine.isCrouching() ? 0.85 : 1.68) + 2.5;
         }
 
-        // Погоня Бактерии
+        // Погоня Бактерии по нижнему лабиринту
         if (bacteriaActive && bacteriaMesh) {
             const target = new THREE.Vector3(playerPos.x, 0, playerPos.z);
             const dir = target.sub(bacteriaMesh.position);
             const dist = dir.length();
 
-            if (dist > 0.9) {
+            if (dist > 1.15) {
                 dir.normalize();
-                bacteriaMesh.position.addScaledVector(dir, 5.1 * dt);
+                bacteriaMesh.position.addScaledVector(dir, 4.9 * dt);
                 bacteriaMesh.lookAt(playerPos.x, 0, playerPos.z);
             } else {
+                // Запуск сцены поедания монстром и синего экрана М.Е.Г.
                 bacteriaActive = false;
-                alert('БАКТЕРИЯ ДОГНАЛА ВАС! Попробуйте снова.');
-                engine.setPlayerPos(100, 1.68, 0, 0);
-                bacteriaMesh.position.set(100, 0, 4.5);
-                bacteriaActive = true;
+                engine.triggerMonsterDeath(bacteriaMesh);
             }
         }
     }
 
     function startGameplay() {
-        engine.setPlayerPos(0, 1.68, 4, 0);
-        engine.setObjective('Соберите части лестницы (0/3) и найдите ключ в стене.');
+        // Спавн игрока в нижней правой секции с сеткой колонн (как на схеме)
+        engine.setPlayerPos(18, 1.68, 14, 0);
     }
 
     window.addEventListener('DOMContentLoaded', buildLevel);
 
     return {
+        getMenuCameraPos: () => MENU_CAM_POS,
         startGameplay,
         update
     };
