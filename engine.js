@@ -402,7 +402,8 @@ window.BackroomsEngine = (function () {
             }
         }
     }
-    function setupTouchControls() {
+        
+        function setupTouchControls() {
         const joyZone = document.getElementById('joystick-zone');
         const joyKnob = document.getElementById('joystick-knob');
         let joyTouchId = null;
@@ -411,20 +412,22 @@ window.BackroomsEngine = (function () {
         if (joyZone && joyKnob) {
             joyZone.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                const t = e.changedTouches;
+                const t = e.changedTouches[0];
                 joyTouchId = t.identifier;
                 updateJoystick(t);
             });
 
             joyZone.addEventListener('touchmove', (e) => {
                 e.preventDefault();
-                for (let t of e.changedTouches) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const t = e.changedTouches[i];
                     if (t.identifier === joyTouchId) updateJoystick(t);
                 }
             });
 
             const endJoy = (e) => {
-                for (let t of e.changedTouches) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const t = e.changedTouches[i];
                     if (t.identifier === joyTouchId) {
                         joyTouchId = null;
                         moveVec.x = 0;
@@ -459,14 +462,15 @@ window.BackroomsEngine = (function () {
         const canvas = document.getElementById('game-canvas');
 
         canvas.addEventListener('touchstart', (e) => {
-            const t = e.changedTouches;
+            const t = e.changedTouches[0];
             lookTouchId = t.identifier;
             lastX = t.clientX;
             lastY = t.clientY;
         });
 
         canvas.addEventListener('touchmove', (e) => {
-            for (let t of e.changedTouches) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
                 if (t.identifier === lookTouchId) {
                     const dx = t.clientX - lastX;
                     const dy = t.clientY - lastY;
@@ -484,7 +488,9 @@ window.BackroomsEngine = (function () {
         });
 
         canvas.addEventListener('touchend', (e) => {
-            for (let t of e.changedTouches) if (t.identifier === lookTouchId) lookTouchId = null;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === lookTouchId) lookTouchId = null;
+            }
         });
 
         const keys = {};
@@ -492,7 +498,7 @@ window.BackroomsEngine = (function () {
             keys[e.code] = true;
             if (e.code === 'ShiftLeft') isSprinting = true;
             if (e.code === 'KeyC') isCrouching = !isCrouching;
-            if (e.code === 'KeyE') triggerInteraction();
+            if (e.code === 'KeyE' || e.code === 'KeyF') triggerInteraction();
             updateKeyboardMove();
         });
         window.addEventListener('keyup', (e) => {
