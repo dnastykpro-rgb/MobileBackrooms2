@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile The Backrooms</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; touch-action: none; }
+        
+        /* 3D Канвас всегда на заднем плане */
+        #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; display: block; }
+
+        /* Общие тактические кнопки без скруглений */
+        .tactical-btn {
+            background: rgba(235, 240, 245, 0.9); color: #0f1215; border: none; border-radius: 0;
+            padding: 12px 16px; font-weight: 800; font-size: 13px; letter-spacing: 1px;
+            text-transform: uppercase; cursor: pointer; transition: 0.15s;
+        }
+        .tactical-btn:active, .tactical-btn:hover { background: #ffffff; transform: translateX(3px); }
+        .tactical-btn.dark { background: rgba(20, 24, 30, 0.85); color: #e5e7eb; border: 1px solid rgba(255,255,255,0.2); }
+        /* ЭКРАН 1: Дисклеймер */
+        #screen-disclaimer {
+            position: fixed; inset: 0; background: #000; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px;
+        }
+        #screen-disclaimer h2 { color: #3b82f6; letter-spacing: 3px; font-size: 20px; margin-bottom: 12px; }
+        #screen-disclaimer p { color: #d1d5db; max-width: 440px; line-height: 1.5; font-size: 15px; }
+        .hint-bottom { position: absolute; bottom: 24px; left: 24px; font-size: 13px; color: #9ca3af; }
+
+        /* ЭКРАН 2: Главное меню (прозрачный фон, чтобы видно было Уровень 0) */
+        #screen-menu {
+            position: fixed; inset: 0; z-index: 20; display: none; padding: 32px;
+            background: radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.65) 100%);
+        }
+        .game-logo h1 { font-size: 26px; font-weight: 900; letter-spacing: 3px; }
+        .game-logo p { font-size: 10px; letter-spacing: 4px; color: #9ca3af; margin-top: 4px; }
+        .menu-box {
+            position: absolute; bottom: 32px; left: 32px; width: 270px;
+            background: rgba(12, 14, 18, 0.8); border: 1px solid rgba(255,255,255,0.15);
+            padding: 14px; display: flex; flex-direction: column; gap: 8px;
+        }
+        .agent-tag {
+            background: #e5e7eb; color: #111; padding: 10px 12px; font-weight: 800; font-size: 14px;
+            border-left: 4px solid #3b82f6;
+        }
+        .menu-box .tactical-btn { text-align: left; width: 100%; }
+        /* ЭКРАН 3: Униформа */
+        #screen-uniform {
+            position: fixed; inset: 0; z-index: 25; display: none; padding: 32px;
+            background: linear-gradient(90deg, rgba(0,0,0,0.75) 0%, transparent 50%);
+        }
+        .uniform-panel { width: 280px; margin-top: 40px; background: rgba(15,18,22,0.85); border: 1px solid rgba(255,255,255,0.15); padding: 16px; }
+        .uniform-panel h3 { font-size: 14px; letter-spacing: 2px; color: #93c5fd; margin-bottom: 10px; }
+        .uniform-panel p { font-size: 13px; color: #d1d5db; line-height: 1.4; margin-bottom: 16px; }
+
+        /* ЭКРАН 4: Выбор экспедиции */
+        #screen-expedition {
+            position: fixed; inset: 0; z-index: 30; display: none; padding: 32px;
+            background: rgba(10, 12, 16, 0.92); flex-direction: column; justify-content: space-between;
+        }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; }
+        .top-bar h2 { font-size: 20px; letter-spacing: 3px; }
+        .cards-row { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .exp-card {
+            width: 240px; background: rgba(20, 24, 30, 0.95); border: 1px solid rgba(255,255,255,0.2);
+            padding: 12px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .exp-preview {
+            height: 110px; display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; letter-spacing: 1px; text-align: center; padding: 10px;
+            background: linear-gradient(180deg, #3a3518 0%, #17150a 100%); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .exp-preview.hub { background: linear-gradient(180deg, #1b2838 0%, #0d131a 100%); }
+        .code-row { display: flex; justify-content: center; gap: 8px; }
+        .code-input {
+            background: #e5e7eb; color: #111; border: none; padding: 12px; width: 190px;
+            font-weight: 800; text-align: center; letter-spacing: 2px; font-size: 13px;
+        }
+        /* ЭКРАН 5: Лобби экспедиции */
+        #screen-lobby {
+            position: fixed; inset: 0; z-index: 35; display: none; padding: 28px;
+            background: rgba(10, 12, 16, 0.94); flex-direction: column; justify-content: space-between;
+        }
+        .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 75%; }
+        .lobby-col {
+            background: rgba(18, 22, 28, 0.9); border: 1px solid rgba(255,255,255,0.15);
+            padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .slot-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 8px; font-size: 13px;
+        }
+        .slot-ready { background: #e5e7eb; color: #111; padding: 3px 8px; font-weight: 800; font-size: 11px; }
+        .invite-box { text-align: center; padding: 14px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); }
+        .invite-box span { color: #60a5fa; font-weight: 900; font-size: 18px; letter-spacing: 2px; }
+        .chat-box { height: 90px; overflow-y: auto; background: rgba(0,0,0,0.4); padding: 8px; font-size: 12px; color: #d1d5db; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* ЭКРАН 6: Игровой HUD */
+        #screen-hud { position: fixed; inset: 0; z-index: 15; display: none; pointer-events: none; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
+            background: rgba(255,255,255,0.85); transform: translate(-50%, -50%);
+        }
+        #hud-top-right { position: absolute; top: 16px; right: 16px; pointer-events: auto; display: flex; gap: 8px; }
+        #hud-objective {
+            position: absolute; top: 16px; left: 16px; background: rgba(12,14,18,0.75);
+            border-left: 3px solid #eab308; padding: 8px 12px; font-size: 12px; letter-spacing: 1px; max-width: 280px;
+        }
+        #interact-prompt {
+            position: absolute; top: 56%; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 18, 22, 0.9); border: 1px solid rgba(255,255,255,0.4);
+            padding: 8px 16px; font-size: 12px; font-weight: 700; letter-spacing: 1px;
+            display: none; pointer-events: auto; cursor: pointer;
+        }
+        /* Серый сенсорный джойстик (без цветных обводов) */
+        #joystick-zone {
+            position: absolute; bottom: 28px; left: 28px; width: 120px; height: 120px;
+            background: rgba(120, 125, 130, 0.25); border-radius: 50%; pointer-events: auto;
+        }
+        #joystick-knob {
+            position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
+            background: rgba(160, 165, 170, 0.55); border-radius: 50%; pointer-events: none;
+        }
+
+        /* Кнопки действий справа внизу (прямоугольные, без скруглений) */
+        .action-pad {
+            position: absolute; bottom: 28px; right: 28px; pointer-events: auto;
+            display: grid; grid-template-columns: 54px 54px; gap: 10px;
+        }
+        .act-btn {
+            width: 54px; height: 54px; background: rgba(35, 40, 48, 0.78);
+            border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 11px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer;
+        }
+        .act-btn.active { background: rgba(235, 240, 245, 0.9); color: #111; }
+        /* ТАКТИЧЕСКИЙ ИНВЕНТАРЬ (в стиле Escape The Backrooms, без скруглений) */
+        #screen-inventory {
+            position: fixed; inset: 0; z-index: 50; display: none;
+            background: rgba(8, 10, 14, 0.88); backdrop-filter: blur(5px);
+            padding: 24px 36px; flex-direction: column; justify-content: space-between;
+        }
+        .inv-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 10px;
+        }
+        .inv-header h2 { font-size: 22px; letter-spacing: 4px; font-weight: 900; }
+        .inv-body {
+            display: grid; grid-template-columns: 200px 1fr 240px; gap: 28px;
+            align-items: center; height: 100%; padding: 16px 0;
+        }
+        .inv-section-label {
+            background: #e5e7eb; color: #0f1215; font-weight: 900; font-size: 11px;
+            letter-spacing: 2px; padding: 4px 10px; margin-bottom: 10px; display: inline-block;
+        }
+        .inv-col-left { display: flex; flex-direction: column; gap: 18px; }
+        .inv-slot {
+            width: 74px; height: 74px; background: rgba(18, 22, 28, 0.9);
+            border: 1px solid rgba(255,255,255,0.25); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+            text-align: center; padding: 4px; cursor: pointer; position: relative;
+        }
+        .inv-slot.selected { border: 2px solid #60a5fa; background: rgba(30, 45, 65, 0.9); }
+        .pockets-row { display: flex; gap: 10px; }
+        .backpack-grid { display: grid; grid-template-columns: repeat(3, 74px); gap: 8px; }
+        .inv-inspect {
+            height: 290px; background: rgba(15, 18, 24, 0.95); border: 1px solid rgba(255,255,255,0.25);
+            padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .inspect-art {
+            height: 130px; background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: center; font-size: 32px; color: #eab308;
+        }
+        .inspect-title { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #fff; margin-top: 8px; }
+        .inspect-desc { font-size: 12px; color: #9ca3af; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="screen-disclaimer">
+        <h2>ВНИМАНИЕ!</h2>
+        <p>Эта игра является фанатской игрой и не является официальным продуктом.</p>
+        <div class="hint-bottom">Нажмите на любую область экрана, чтобы продолжить</div>
+    </div>
+
+    <div id="screen-menu">
+        <div class="game-logo">
+            <h1>MOBILE THE BACKR&infin;MS</h1>
+            <p>LIMINAL EXPEDITION PROTOCOL</p>
+        </div>
+        <div class="menu-box">
+            <div class="agent-tag">Agent_01</div>
+            <button class="tactical-btn" id="btn-to-expedition">ИГРАТЬ В ИГРУ</button>
+            <button class="tactical-btn" id="btn-to-uniform">УНИФОРМА</button>
+            <button class="tactical-btn" id="btn-exit" onclick="location.reload()">ВЫЙТИ</button>
+        </div>
+    </div>
+    <div id="screen-uniform">
+        <div class="top-bar">
+            <h2>ЭКИПИРОВКА АГЕНТА</h2>
+            <button class="tactical-btn" id="btn-uniform-back">НАЗАД</button>
+        </div>
+        <div class="uniform-panel">
+            <h3>HAZMAT SUIT MK-IV</h3>
+            <p>Герметичный защитный костюм класса А. Предназначен для длительных экспедиций в нестабильных лиминальных зонах.</p>
+            <p style="font-size:11px; color:#93c5fd;">Проведите пальцем по экрану, чтобы осмотреть костюм.</p>
+        </div>
+    </div>
+
+    <div id="screen-expedition">
+        <div class="top-bar">
+            <h2>ВЫБОР ЭКСПЕДИЦИИ</h2>
+            <button class="tactical-btn" id="btn-exp-back">НАЗАД</button>
+        </div>
+        <div class="cards-row">
+            <div class="exp-card">
+                <div class="exp-preview">СЕКТОРЫ 0 &mdash; 4</div>
+                <button class="tactical-btn" id="btn-select-story" style="width:100%">СЮЖЕТНЫЙ РЕЖИМ</button>
+            </div>
+            <div class="exp-card">
+                <div class="exp-preview hub">РАСПРЕДЕЛИТЕЛЬНЫЙ УЗЕЛ</div>
+                <button class="tactical-btn dark" style="width:100%" onclick="alert('Центр (Хаб) откроется после прохождения Сектора 0')">ЦЕНТР (ХАБ)</button>
+            </div>
+        </div>
+        <div class="code-row">
+            <input type="text" class="code-input" maxlength="4" placeholder="КОД ДРУГА (4 ЦИФРЫ)">
+            <button class="tactical-btn" id="btn-join-code">ВОЙТИ ПО КОДУ</button>
+        </div>
+    </div>
+    <div id="screen-lobby">
+        <div class="top-bar">
+            <h2>ЛОББИ ЭКСПЕДИЦИИ</h2>
+            <button class="tactical-btn" id="btn-lobby-back">ВЫЙТИ ИЗ ЛОББИ</button>
+        </div>
+        <div class="lobby-grid">
+            <div class="lobby-col">
+                <div>
+                    <div style="font-size:11px; color:#9ca3af; margin-bottom:10px;">УЧАСТНИКИ ГРУППЫ (1–4)</div>
+                    <div class="slot-item"><span>Agent_01 (Вы)</span><span class="slot-ready">ГОТОВ</span></div>
+                    <div class="slot-item" style="opacity:0.4"><span>Пустой слот #2</span><span>Ожидание...</span></div>
+                    <div class="slot-item" style="opacity:0.4"><span>Пустой слот #3</span><span>Ожидание...</span></div>
+                </div>
+                <div>
+                    <div class="chat-box" id="lobby-chat">Система: Протокол экспедиции активирован.</div>
+                    <div style="display:flex; gap:6px;">
+                        <input type="text" id="lobby-chat-input" class="code-input" style="width:100%; text-align:left;" placeholder="Чат лобби...">
+                        <button class="tactical-btn" id="btn-lobby-send">ENTER</button>
+                    </div>
+                </div>
+            </div>
+            <div class="lobby-col">
+                <div class="invite-box">
+                    <div style="font-size:12px; color:#9ca3af;">КОД ПРИГЛАШЕНИЯ: <span id="invite-code-val">3953</span></div>
+                    <div style="font-size:10px; color:#6b7280; margin-top:4px;">Нажмите, чтобы скопировать код</div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div class="tactical-btn" style="cursor:default">СЕКТОР: УРОВЕНЬ 0</div>
+                    <div class="tactical-btn" style="cursor:default">СЛОЖНОСТЬ: ОБЫЧНАЯ</div>
+                </div>
+                <button class="tactical-btn" id="btn-start-game" style="width:100%; text-align:center; padding:16px; background:#fff;">СТАРТ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-hud">
+        <div id="crosshair"></div>
+        <div id="hud-objective">ЗАДАЧА: Соберите части лестницы (0/3) и найдите ключ в стене.</div>
+        <div id="hud-top-right">
+            <button class="tactical-btn dark" id="btn-hud-menu" style="padding:8px 12px; font-size:11px;">В Меню</button>
+        </div>
+        <div id="interact-prompt">[ ВЗАИМОДЕЙСТВОВАТЬ ]</div>
+
+        <div id="joystick-zone"><div id="joystick-knob"></div></div>
+
+        <div class="action-pad">
+            <div class="act-btn" id="btn-inv">РЮКЗАК</div>
+            <div class="act-btn" id="btn-sprint">БЕГ</div>
+            <div class="act-btn" id="btn-crouch">ПРИСЕД</div>
+            <div class="act-btn" id="btn-use">ДЕЙСТВ.</div>
+        </div>
+    </div>
+    <div id="screen-inventory">
+        <div class="inv-header">
+            <h2>ИНВЕНТАРЬ</h2>
+            <button class="tactical-btn" id="btn-close-inv">ЗАКРЫТЬ [X]</button>
+        </div>
+        <div class="inv-body">
+            <div class="inv-col-left">
+                <div>
+                    <div class="inv-section-label">ОСНОВНАЯ РУКА</div>
+                    <div class="inv-slot" data-slot="hand"></div>
+                </div>
+                <div>
+                    <div class="inv-section-label">КАРМАНЫ</div>
+                    <div class="pockets-row">
+                        <div class="inv-slot" data-slot="pocket0"></div>
+                        <div class="inv-slot" data-slot="pocket1"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="inv-section-label">РЮКЗАК</div>
+                <div class="backpack-grid" id="backpack-grid"></div>
+            </div>
+            <div class="inv-inspect">
+                <div>
+                    <div class="inv-section-label">ОСМОТР</div>
+                    <div class="inspect-art" id="inspect-icon">?</div>
+                    <div class="inspect-title" id="inspect-title">ПУСТО</div>
+                    <div class="inspect-desc" id="inspect-desc">Выберите ячейку для осмотра.</div>
+                </div>
+                <button class="tactical-btn" id="btn-equip-hand" style="width:100%; text-align:center;">ВЗЯТЬ В РУКУ</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./three.min.js"></script>
+    <script src="./GLTFLoader.js"></script>
+    <script src="./engine.js"></script>
+    <script src="./level0.js"></script>
+</body>
+</html>
