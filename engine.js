@@ -43,7 +43,7 @@ window.BackroomsEngine = (function () {
     let killerMonster = null;
     let deathTimer = 0;
 
-    const DB_URL = ['https:/', 'vrgamep-79dc0-default-rtdb', 'firebaseio.com'].join('/').replace('firebaseio', '.firebaseio');
+    const DB_URL = ['https://vrgamep-79dc0-default-rtdb.firebaseio.com/'].join('/').replace('firebaseio', '.firebaseio');
     const playerId = 'agent_' + Math.floor(1000 + Math.random() * 9000);
     const playerName = 'Agent_' + playerId.slice(-2);
     let roomCode = '3953';
